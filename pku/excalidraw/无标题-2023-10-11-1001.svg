@@ -1,0 +1,17 @@
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 684.3334045410156 138.00003051757812" width="684.3334045410156" height="138.00003051757812">
+  <!-- svg-source:excalidraw -->
+  
+  <defs>
+    <style class="style-fonts">
+      @font-face {
+        font-family: "Virgil";
+        src: url("https://excalidraw.com/Virgil.woff2");
+      }
+      @font-face {
+        font-family: "Cascadia";
+        src: url("https://excalidraw.com/Cascadia.woff2");
+      }
+    </style>
+    
+  </defs>
+  <g stroke-linecap="round" transform="translate(14.666656494140625 39.33331298828125) rotate(0 329.3333435058594 44.00001525878906)"><path d="M0 0 C202.37 0, 404.73 0, 658.67 0 M0 0 C241.42 0, 482.83 0, 658.67 0 M658.67 0 C658.67 23.62, 658.67 47.24, 658.67 88 M658.67 0 C658.67 30.53, 658.67 61.06, 658.67 88 M658.67 88 C488.81 88, 318.96 88, 0 88 M658.67 88 C399.54 88, 140.41 88, 0 88 M0 88 C0 61.83, 0 35.67, 0 0 M0 88 C0 67.79, 0 47.58, 0 0" stroke="#1e1e1e" stroke-width="1" fill="none"></path></g><g transform="translate(10 10) rotate(0 11.123046875 11.5)"><text x="0" y="0" font-family="Helvetica, Segoe UI Emoji" font-size="20px" fill="#1e1e1e" text-anchor="start" style="white-space: pre;" direction="ltr" dominant-baseline="text-before-edge">31</text></g><g transform="translate(663.2103576660156 10.83331298828125) rotate(0 5.5615234375 11.5)"><text x="0" y="0" font-family="Helvetica, Segoe UI Emoji" font-size="20px" fill="#1e1e1e" text-anchor="start" style="white-space: pre;" direction="ltr" dominant-baseline="text-before-edge">0</text></g><g stroke-linecap="round"><g transform="translate(400.6666564941406 40) rotate(0 0 44.00001525878906)"><path d="M0 0 C0 27.19, 0 54.38, 0 88 M0 0 C0 24.02, 0 48.05, 0 88" stroke="#1e1e1e" stroke-width="1" fill="none"></path></g></g><mask></mask><g transform="translate(173.33331298828125 72) rotate(0 30 11.5)"><text x="0" y="0" font-family="Helvetica, Segoe UI Emoji" font-size="20px" fill="#1e1e1e" text-anchor="start" style="white-space: pre;" direction="ltr" dominant-baseline="text-before-edge">标记域</text></g><g transform="translate(447.3332824707031 73.5) rotate(0 30 11.5)"><text x="0" y="0" font-family="Helvetica, Segoe UI Emoji" font-size="20px" fill="#1e1e1e" text-anchor="start" style="white-space: pre;" direction="ltr" dominant-baseline="text-before-edge">索引域</text></g><g stroke-linecap="round"><g transform="translate(554.3332824707031 39.33329772949219) rotate(0 0 44.00001525878906)"><path d="M0 0 C0 18.57, 0 37.14, 0 88 M0 0 C0 31.76, 0 63.53, 0 88" stroke="#1e1e1e" stroke-width="1" fill="none"></path></g></g><mask></mask><g transform="translate(580.3332824707031 71.49996948242188) rotate(0 30 11.5)"><text x="0" y="0" font-family="Helvetica, Segoe UI Emoji" font-size="20px" fill="#1e1e1e" text-anchor="start" style="white-space: pre;" direction="ltr" dominant-baseline="text-before-edge">偏移量</text></g></svg>
