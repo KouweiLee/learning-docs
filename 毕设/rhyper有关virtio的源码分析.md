@@ -35,6 +35,16 @@ virtio_blk_notify_handler：该函数中会将IO请求添加到异步任务队�
 
 rhyper的设计理念类似微内核，MVM连接真实的net设备，可以与外网通信。其他GVM要想与外网通信，可以将数据通过rhyper内部的virtio-net设备发送给MVM，由MVM发送给外网。当MVM从外网收到报文时，根据其mac地址就可以转发给指定VM。即virtio-net设备用于内网通信，MVM承担着交换机的作用。
 
+* device的初始化
+
+emu_virtio_mmio_init-->
+
+VirtDevInner::init函数: 创建设备
+
+virtio_queue_init: 初始化virtqueue
+
+一个virtio net device有3个队列, 包含control队列. 
+
 其初始化与blk类似，不过发生data abort后的异常处理函数有所不同：
 
 ...-->
@@ -171,8 +181,6 @@ mediated_blk_notify_handler：MVM处理完数据请求，--》async_task_exe-->f
 
 rhyper其实就是，先发ipi让mvm的一个cpu陷入el2，然后el2将IO请求放在共享的数据结构里以便vm能获取到，然后中断注入到mvm，让mvm在el1或0来处理这个请求。
 
-
-
 ## 问题
 
 - [x] 为什么rhyper要使用异步队列？？？要不自己设计一下？
@@ -185,6 +193,8 @@ rhyper的异步任务跟同步的一样，主动调用的poll函数，这就直�
 在pi4_def.rs中，mvm_config_init函数里有一个device名为vm_service的，其中断号就是HVC_IRQ。其类型为EmuDeviceTShyper，还注册到了设备树里面，异常处理函数是什么？？？
 
 通过ko文件弄得
+
+- [ ] vm_if_set_mem_map_bit: 这个函数或许是允许某个vm access某个地址的
 
 ## 参考资料
 

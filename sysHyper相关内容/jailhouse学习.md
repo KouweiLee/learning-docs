@@ -80,6 +80,12 @@ system_config后面实际上是mem_pool的bitmap。guest ram就是guest代码段
 
 详见[memory layout](memory-layout.txt)
 
+#### root linux和non root的物理内存图
+
+对于arm, qemu提供的物理内存RAM的起始地址为0x4000_0000
+
+<img src="https://mdpics4lgw.oss-cn-beijing.aliyuncs.com/aliyun/image-20231227164711886.png" alt="image-20231227164711886" style="zoom:50%;" />
+
 ## 启动jailhouse
 
 * 编译Jailhouse：

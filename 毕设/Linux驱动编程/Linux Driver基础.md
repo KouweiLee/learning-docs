@@ -16,6 +16,39 @@ Linux把everything当作文件，硬件也被看作是文件。Linux的设备分
 - Block device
 - Network device
 
+### Major Number & Minor Number
+
+内核用`<major>:<minor>`表示字符设备和块设备。
+
+主设备号表示该设备对应的驱动，可能有多个设备有相同的主设备号，例如`/dev/vc/0`、`tty`的主设备号都为4
+
+从设备号用于驱动识别具体的设备，驱动通过从设备号可以知道是哪个具体的设备。
+
+#### 分配major & minor number
+
+该函数会分配设备号, 并在/proc/devices和sysfs中创建名为name的项:
+
+```c
+int alloc_chrdev_region(dev_t *dev, unsigned int firstminor, unsigned int count, char *name);
+```
+
+> **`dev`** is an output-only parameter that will, on successful completion, hold the first number in your allocated range.
+>
+> **`firstminor`** should be the requested first minor number to use; it is usually 0.
+>
+> **`count`** is the total number of contiguous device numbers you are requesting.
+>
+> **`name`** is the name of the device that should be associated with this number range; it will appear in **`/proc/devices`** and **`sysfs`**.
+
+其中`dev_t`类型定义在`<linux/types.h>`, 是32bit数, 可以通过以下宏来获取major 和 minor number.
+
+```c
+MAJOR(dev_t dev);
+MINOR(dev_t dev);
+```
+
+
+
 ## 如何编写ko模块
 
 ### Module信息
@@ -83,11 +116,12 @@ printk(KERN_INFO "Welcome To EmbeTronicX");
 ```
 pr_info – Print an info-level message. (ex. pr_info("test info message\n")).
 pr_err – Print an error-level message. (ex. pr_err(“test error message\n”)).
-
 ```
 
-
+要查看这些信息, 通过dmesg命令.
 
 ## 参考资料
 
-https://embetronicx.com/tutorials/linux/device-drivers/linux-device-driver-part-1-introduction/
+1. https://embetronicx.com/tutorials/linux/device-drivers/linux-device-driver-part-1-introduction/
+
+2. https://embetronicx.com/tutorials/linux/device-drivers/character-device-driver-major-number-and-minor-number/

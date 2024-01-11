@@ -4,6 +4,18 @@
 
 教程：[三、Makefile文件的语法_w3cschool](https://www.w3cschool.cn/mexvtg/dsiguozt.html)
 
+https://seisman.github.io/how-to-write-makefile/introduction.html#id1
+
+### 基本语法
+
+如果一个目标后面没有依赖文件, 那么make时不会自动执行该目标对应的命令
+
+include filename: 会将一个makefile的内容放在include的位置, 就像C语言中的#include. 
+
+如果执行include或shell命令时, 当发生错误不理会继续执行, 可以在命令前加-
+
+伪目标最好通过.PHONY再声明一下, 这样避免伪目标和真实文件重名的情况. 伪目标没有依赖文件的关系, 所以需要make 伪目标来执行. 当然其后面也可以跟着依赖文件, 表示要生成这些依赖文件或目标. 
+
 ### 函数
 
 #### foreach
@@ -177,6 +189,10 @@ watch point：
 ### gcc
 
 gcc -E可以预编译宏进行宏展开
+
+gcc的各个编译选项:
+
+
 
 ### objdump
 

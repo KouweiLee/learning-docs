@@ -12,9 +12,9 @@ GIC，是Arm下的一种中断控制器，它可以将外设发来的中断发�
 
 每个中断通过中断号INTID表示，中断可分为几种类型：
 
-* SGI：Software Generated Interrupt，用于核间通信，通过写GIC中SGI寄存器产生该中断。
+* SGI：Software Generated Interrupt，用于核间通信，通过写GIC中SGI寄存器产生该中断。在Linux内核中, 被用作IPI(Inter-Processor Interrupt)
 * PPI：Private Peripheral Interrupt ：中断只会发给一个指定的核，例如时钟中断。
-* SPI：Shared Peripheral Interrupt：中断可以被传送到任意一个CPU，或者所有CPU
+* SPI：Shared Peripheral Interrupt：外设中断, 可以被传送到任意一个CPU，或者所有CPU
 
 ![image-20230925224635370](https://mdpics4lgw.oss-cn-beijing.aliyuncs.com/aliyun/202309252246571.png)
 
@@ -38,7 +38,7 @@ GIC，是Arm下的一种中断控制器，它可以将外设发来的中断发�
 
 ### PPI
 
-感谢神，赐
+PPI是每个处理器的私有中断, 例如CPU本地定时器, 定时器直接与CPU相连, 因此中断发给哪个CPU是确定的.
 
 ### SPI
 
