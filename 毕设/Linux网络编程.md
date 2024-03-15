@@ -32,6 +32,10 @@ int inet_pton(int af, const char *src, void *dst);
 const char *inet_ntop(int af, const void *src, char *dst, socklen_t size); 
 ```
 
+### 计网知识
+
+一个计算机上可以有多个网卡, 每个网卡都有一个IP地址. 
+
 ## socket编程
 
 网络中的进程是通过socket来通信的, socket类似与Unix系统中的文件, 通过open, read/write, close等类似的方法进行读写即可进行网络通信. 其基本的几个接口函数如下:
@@ -206,6 +210,10 @@ close一个TCP socket的缺省行为时把该socket标记为以关闭，然后�
 <img src="https://mdpics4lgw.oss-cn-beijing.aliyuncs.com/aliyun/image-20240110155417220.png" alt="image-20240110155417220" style="zoom:67%;" />
 
 
+
+## 虚拟网络设备
+
+Bridge, tap/tun都是虚拟网络设备, 都可以配置IP, MAC. 
 
 ## 参考资料
 

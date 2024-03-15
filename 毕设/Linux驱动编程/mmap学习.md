@@ -20,6 +20,7 @@ void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset)
   - `MAP_SHARED`：与其它所有映射到这个文件的进程共享映射空间（可实现共享内存）。
   - `MAP_PRIVATE`：建立一个写时复制（Copy on Write）的私有映射空间。
   - `MAP_LOCKED`：锁定映射区的页面，从而防止页面被交换出内存。
+  - `MAP_ANONYMOUS`: 表示创建一个匿名的映射, 这时fd设置为-1, 表示直接映射到内存.
 
 * offset: 要映射文件起始地址的偏移量, 必须按页对齐.  
 
@@ -33,5 +34,4 @@ void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset)
 
 
 - [x] 如果将RAM内存映射给non root时, root不取消映射, 那么就不需要在el2增加映射了, 直接让用户态能获得el1的ipa就行了. 
-
 

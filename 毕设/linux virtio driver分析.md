@@ -84,99 +84,63 @@ static struct virtio_driver virtio_blk = {
 };
 ```
 
+### net driver
 
+* virtio_dev_probe
 
-函数virtio_mmio_probe, virtio_mmio.c
+  net的virtio driver为:
 
--->register_virtio_device
+  ```
+  static struct virtio_driver virtio_net_driver = {
+  	.feature_table = features,
+  	.feature_table_size = ARRAY_SIZE(features),
+  	.feature_table_legacy = features_legacy,
+  	.feature_table_size_legacy = ARRAY_SIZE(features_legacy),
+  	.driver.name =	KBUILD_MODNAME,
+  	.driver.owner =	THIS_MODULE,
+  	.id_table =	id_table,
+  	.validate =	virtnet_validate,
+  	.probe =	virtnet_probe,
+  	.remove =	virtnet_remove,
+  	.config_changed = virtnet_config_changed,
+  #ifdef CONFIG_PM_SLEEP
+  	.freeze =	virtnet_freeze,
+  	.restore =	virtnet_restore,
+  #endif
+  };
+  ```
 
--->device_add, core.c
+  * virtnet_probe
 
-sb_getblk: 
+首先通过alloc_etherdev_mqs函数分配一个net_device. 
 
-```c
-static inline struct buffer_head *
-sb_getblk(struct super_block *sb, sector_t block)
+```
+struct net_device *alloc_etherdev_mqs(int sizeof_priv, unsigned int txqs,
+				      unsigned int rxqs)
 {
-	return __getblk_gfp(sb->s_bdev, block, sb->s_blocksize, __GFP_MOVABLE);
+	return alloc_netdev_mqs(sizeof_priv, "eth%d", NET_NAME_UNKNOWN,
+				ether_setup, txqs, rxqs);
 }
 ```
 
-__getblk_gfp:
+设定net_device dev的netdev_ops为virtnet_netdev. ethtool_ops为virtnet_ethtool_ops
 
-```c
-/*
- * __getblk_gfp() will locate (and, if necessary, create) the buffer_head
- * which corresponds to the passed block_device, block and size. The
- * returned buffer has its reference count incremented.
- *
- * __getblk_gfp() will lock up the machine if grow_dev_page's
- * try_to_free_buffers() attempt is failing.  FIXME, perhaps?
- */
-struct buffer_head *
-__getblk_gfp(struct block_device *bdev, sector_t block,
-	     unsigned size, gfp_t gfp)
-{
-	struct buffer_head *bh = __find_get_block(bdev, block, size);
+init_vqs-->
 
-	might_sleep();
-	if (bh == NULL)
-		bh = __getblk_slow(bdev, block, size, gfp);
-	return bh;
-}
-```
+​	将`refill_work`函数加入到延迟工作队列中, 负责每隔一段时间后向接收队列中加入缓冲区. refill_work调用了try_fill_recv.
 
-__find_get_block:
-
-mount_root: 挂载根文件系统, 已经开始了该函数
-
-
-
-virtqueue增加请求: 
-
-virtblk_add_req: 
-
-```c
-static int virtblk_add_req(struct virtqueue *vq, struct virtblk_req *vbr,
-		struct scatterlist *data_sg, bool have_data)
-{
-	struct scatterlist hdr, status, *sgs[3];
-	unsigned int num_out = 0, num_in = 0;
-	// 初始化一个scatterlist数组, 只有一个元素, 指向out_hdr
-	sg_init_one(&hdr, &vbr->out_hdr, sizeof(vbr->out_hdr));
-	sgs[num_out++] = &hdr;
-
-	if (have_data) {
-		if (vbr->out_hdr.type & cpu_to_virtio32(vq->vdev, VIRTIO_BLK_T_OUT))
-			sgs[num_out++] = data_sg;
-		else
-			sgs[num_out + num_in++] = data_sg;
-	}
-
-	sg_init_one(&status, &vbr->status, sizeof(vbr->status));
-	sgs[num_out + num_in++] = &status;
-
-	return virtqueue_add_sgs(vq, sgs, num_out, num_in, vbr, GFP_ATOMIC);
-}
-```
+​	使用NAPI技术为rq和sq分别设置polling function:
 
 ```
-virtqueue_add_split
+netif_napi_add(vi->dev, &vi->rq[i].napi, virtnet_poll,
+       napi_weight);
+netif_tx_napi_add(vi->dev, &vi->sq[i].napi, virtnet_poll_tx,
+      napi_tx ? napi_weight : 0);
 ```
 
-最新进展: desc table这些基地址是正确的
+virtnet_find_vqs-->设置rxq的callback函数为skb_recv_done, txq为skb_xmit_done
 
-~~但是取消映射后, 竟然root没有报错, 只是Mmio报了错, 仔细看看这块为什么明天.~~: 重新看了一下, 报错了
-
-**qemu启动root linux命令行中的mem=768M, 正好规定了linux可以使用的内存区域大小为3000_0000, 因此不会和non root linux的内存区域发生冲突, 而且还可以访问non root linux的内存区域**
-
-最新进展: root 可以访问到non root的内存区域. 
-
-重点关注一下: __do_execve_file
-
-kernel_init-->
-
-## IO请求
+## blk-IO请求
 
 ### driver发出请求
 
@@ -225,13 +189,51 @@ submit_requests
 
 vm_interrupt-->
 
-vring_interrupt-->检查已用环是否变化, 并调用vq的callback
+vring_interrupt-->遍历该设备的所有vqs, 检查每个vq的已用环是否变化, 并调用vq的callback
 
 virtblk_done-->
 
 virtqueue_get_buf--->virtqueue_get_buf_ctx--->virtqueue_get_buf_ctx_split
 
 -->detach_buf_split: 
+
+## net-IO请求
+
+xmit_skb
+
+
+
+->virtqueue_add_outbuf
+
+->virtqueue_add
+
+->virtqueue_add_split
+
+当virtio-net driver向rxq中填充空闲buffer后,会notify rxq
+
+### sk_buff
+
+网络数据是以sk_buff结构体在内核中保存的. sk_buff中包含了该网络数据的相关信息, 以及其数据所在的缓冲区地址信息. 如下图:
+
+ <img src="https://mdpics4lgw.oss-cn-beijing.aliyuncs.com/aliyun/image-20240313084719709.png" alt="image-20240313084719709" style="zoom: 33%;" />
+
+刚分配好sk_buff后, head, data, tail是在同一位置. 之后通过变更sk_buff, 来扩展数据区
+
+针对sk_buff的相关操作:
+
+* 分配sk_buff: `alloc_skb`
+* 释放sk_buff: `kfree_skb`
+* 变更sk_buff
+  * skb_put: 在sk_buff的数据区尾部tail后移n个字节, 返回值为拓展出来的那一段数据区的首地址
+  * skb_push: 在sk_buff数据区头部data向head方向移动n个字节, 返回值为新数据区首地址
+  * skb_pull: 将sk_buff数据区头部data向end方向移动n个字节, 返回值为新数据区首地址
+  * skb_reserve: 调整头部大小, 也就是将data和tail同时向end方向移动n个字节, 无返回值
+
+
+
+参考资料:
+
+https://www.jianshu.com/p/3c5d5fa339fc
 
 ## TODO
 

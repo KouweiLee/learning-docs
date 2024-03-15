@@ -1,14 +1,195 @@
 # virtio实现
 
+## 改进优化
+
+- [ ] 虚拟设备里放一个锁, 其实是为了多线程
+- [ ] 利用多线程优化网络设备和磁盘设备, 提升性能. 
+
 ## net实现
 
-- [ ] 确定device端要怎么实现
+实现步骤:
+
+1. 在qemu上创建虚拟网络设备
+
+使用276页的命令创建, e1000就是root linux可见的真实设备了.
+
+2. 有了e1000, 那么就用网桥连接即可. 命令行中创建tap0, 然后程序中attach到tap0
+
+### 实现步骤
+
+- [x] 先把多设备支持起来
+
+- [x] 把net的数据结构整出来
+
+  - [x] 搞懂各个feature的作用. CSUM可以先不用管,是为驱动做优化的.
+
+- [x] 支持起epoll机制, 以及创建一个新线程. 
+
+- [x] 完善net的init函数, 对tap fd进行epoll
+
+- [x] 完成net的2个rx和tx的notify函数
+
+- [x] epoll是哪种epoll, 有数据会一直返回还是收到一次数据返回一次
+
+  默认是level triggered, 有数据会一直返回
+
+- [x] 多个返回的发给同一个CPU, 不同的irq_id, 如何保证全部都中断注入了
+
+  把Map变成一个队列形式的, 保存所有的中断
+
+- [ ] 如果cpu此时因为配置请求阻塞了,之后先返回的是数据请求的结果,怎么办? 需要在返回的时候特判一下吗????
+
+  map保存中断注入号和数据值, 标记一下是哪种类型的返回结果. 
+
+  能不能让IO结果队列直接返回, 不通过Ioctl. 只有需要中断注入才需要....
+
+  IO结果队列,每个CPU都有一个位置和一个位置标记, 位置标记表示该位置是否可用. CPU等待时会轮询. 
+
+- [x] acrn发生配置请求时, CPU会阻塞吗. 
+
+  它有vcpu, 应该是vcpu不会被调度了
+
+- [x] 增加Barrier
+
+  目前增加了队列的,但是while循环后的需不需要加还不知道.
+
+- [x] 实现多线程优化时, 需要增加一个结果环形队列. 现在就需要增加. 
+
+- [x] 跳板队列和环形队列能否合并???
+
+  应该能, 这样就少了SGI. 关键问题是, 如果环形请求队列已满, 怎么办??? 原地等待啦. 记得加锁, 保证访问的互斥性. 
+
+- [ ] 记得增大MAX_REQ
+
+- [ ] 注意used ring flags和avail ring flags
+
+- [x] CSUM怎么弄,看看
+
+  先不用管了
+
+下一步任务:
+
+- [x] 实现IO请求队列,
+
+- [x]  以及必要的内存屏障. 
+- [ ] 优化map的list.
+
+成功启动virtio-blk
+
+- [x] 跑之前能跑的, 对比一下输出日志, 看是哪里错了. 
+
+  最新:a9daa0c9411c2c3b16631
+
+  vir-blk: f1adaa4a2f0ef00
+
+- [x] 看看virtio驱动是如何判断avail ring不为空的
+
+  看了看网上的环形队列教程
+
+- [x] 话说成功启动virtio-net
+
+  - [x] qemu能连通外网
+  
+    多个virtio-net,需要同样数量的tap设备. 多个tap设备通过网桥设备和真实网卡相连.
+  
+- [x] qemu不加网卡参数, 竟然还能ping通外网, 这是为什么
+
+可能确实是默认的行为, 因为user模式下的ip地址确实是10.多少多少
+
+- [x] jailhouse启动带有网卡的linux是可以的, 但是hvisor不行, 这是为什么
+
+  - [x] 为什么对redist addr进行操作会报错????
+
+    因为hypervisor的内存地址就没映射
+
+  现在qemu启动命令行不加任何参数, 可以跑起来了. 之后通过tap设备再弄下吧
+
+有一个报错:
+
+```
+[WARN  14] hvisor::memory::mmio:74] Cell 0 unhandled mmio fault MMIOAccess {
+    address: 0x8000003004,
+    size: 0x2,
+    is_write: true,
+    value: 0x1,
+}
+[ERROR 14] hvisor::panic:6] panic occurred: PanicInfo {
+    payload: Any { .. },
+    message: Some(
+        mmio_handle_access: [src/memory/mmio.rs:79:13] Invalid argument,
+    ),
+    location: Location {
+        file: "src/arch/aarch64/exception.rs",
+        line: 170,
+        col: 13,
+    },
+    can_unwind: true,
+}
+
+```
+
+这个报错是内核的报错, 等着看看是怎么回事吧
+
+- [x] 看non root virtio的日志, 开始de目前的net设备的bug吧
+
+- [x] 目前net driver可以设定描述符表等地址了, status为15, 表示1, 2, 4, 8都齐全了
+
+- [x] 观察:
+
+  ```
+  virtnet_config_changed_work
+  ```
+
+  目前修改了qemu的启动参数, 正常了. 但目前tap设备无法给non root发包, non root到目前为止没有收到报文. 应该从网桥也没有往外传出去可能. tap设备的发包是往虚拟机发. 
+
+- [x] txq中, 描述符链的第一个描述符包含真实报文数据吗????? 仔细看xmit_skb函数
+
+~~根据virtio协议, 应该不包含, 因为没有协商VIRTIO_F_ANY_LAYOUT. 这会使得描述符链的第一个描述符仅仅包含virtio协议头.~~ 
+
+看了Linux源码, 只要协商了VIRTIO_F_VERSION_1, 就相当于有了ANY_LAYOUT, 对于网络设备. 因此第一个描述符包含真实报文数据.
+
+- [x] 为什么tap设备无法从外网收到报文. eth0为什么没有ipv4地址
+
+因为目前实现的有问题
+
+- [x] 改linux, 把描述符分开
+- [ ] 确保各个环形队列在回环后正确工作, 包括virtio的
+
+```
+sudo ip link set dev eth0 promisc on
+sudo ip addr add 10.0.2.16/24 dev eth0
+```
+
+- [x] 现在发现了问题, calloc后的mevp, 不知道咋回事, 被清空为0了. epoll_wait不会改变mevp. 明天可以试试mevps保存上mevp
+
+竟然是memset vq 为0时, vq多加了一个idx, 导致把mevp的东西都删除了. 
+
+- [ ] 另外rx_callback执行时, 每次都会报no more packets的错误, 解决它
+- [ ] 目前有两个线程可以访问net, 需要考虑加锁. 不过先把没加锁的版本都跑通了, 之后再弄加锁版本的. 
+
+***
+
+
+
+能跑起来的:
+
+- [x] 确定device端要怎么实现
 
 虚拟机之间的通信是好说的, 直接在rx_vq上写数据就行
 
-虚拟机和外网之间的通信如何弄??? non root如何识别root是一个路由器? 只要给定ip地址就行应该. 
+虚拟机和外网之间的通信如何弄??? non root如何识别root是一个路由器? 只要给定ip地址就行应该.  
 
-- [ ] net的那些features的作用搞清楚, 看怎么实现
+root有2个网卡驱动, 一个virtio的, 用于接发内网的数据包；一个驱动真实的网卡, 用于接发外网的数据包. 这两个网卡驱动如何通信? 是否是通过网桥实现的??? 通过网桥应该可以实现自动转发包, rhyper就是这么实现的. 
+
+各个vm的ip地址应该是属于同一子网. 
+
+有个问题, root能给自己实现virtio net吗???
+
+- [x] net的那些features的作用搞清楚, 看怎么实现
+- [x] 回顾计网的知识, 先让root能ping通外网. 或者先让内网之间能ping通. 
+- [x] 网桥的作用? 
+
+连接两个网卡, 比如tap0和ens33, 当虚拟机通过tap0发包时, 会被br0接管, br0将其发送给ens33, ens33再转发出去. br0收到包时, 会判断该包是否属于tap0, 是的话则会路由给tap0, tap0再发给虚拟机的网卡.  
 
 ## 跳板机制的改进
 
@@ -42,8 +223,34 @@
 
   先暂定这个做法, 感觉这个做法更加合适. 不会丢失任何mmio访问. 
 
-- [ ] 确保notify请求不会丢失. 要不就取消el2的判断, 
-- [ ] 是否有可能, 同时对一个设备的多个队列进行操作. 
+- [x] 确保notify请求不会丢失. 要不就取消el2的判断, 
+- [x] 是否有可能, 同时对一个设备的多个队列进行操作. 
+
+<img src="https://mdpics4lgw.oss-cn-beijing.aliyuncs.com/aliyun/image-20240111152914119.png" alt="image-20240111152914119" style="zoom:50%;" />
+
+- [x] 驱动程序必须在idx更新之前执行合适的内存屏障操作，以确保设备看到最新描述符和buffer内容。rcore是这么干的:
+
+```
+        unsafe {
+            (*self.avail.as_ptr()).ring[avail_slot as usize] = head;
+        }
+
+        // Write barrier so that device sees changes to descriptor table and available ring before
+        // change to available index.
+        fence(Ordering::SeqCst);
+
+        // increase head of avail ring
+        self.avail_idx = self.avail_idx.wrapping_add(1);
+        // Safe because self.avail is properly aligned, dereferenceable and initialised.
+        unsafe {
+            (*self.avail.as_ptr()).idx = self.avail_idx;
+        }
+
+        // Write barrier so that device can see change to available index after this method returns.
+        fence(Ordering::SeqCst);
+```
+
+
 
 ***
 
@@ -76,7 +283,7 @@
 
 - [x] 感觉得看看, 研究一下通信过程, 可能要把请求先组合起来, 再进行数据传输.
 
-## blk实现
+## ~~blk实现~~
 
 不要管legacy. 不需要改成cpp. 
 
@@ -245,6 +452,10 @@ siginfo的一些域：
 
 以后不再记录每天实现了什么, 而是一个个路线以任务列表的形式写下来, 主要要知道自己在干什么, 按顺序写.
 
+### 3.11
+
+看完了virtio net driver初始化的代码, 目前的问题是, dev_open函数没有被执行, refill_work从来都没有得到过调度. 不知道为什么.....求主帮助吧......
+
 ## 路线完成度
 
 0x0a003e00, 大小为0x1000, 为virtio区域
@@ -380,3 +591,7 @@ rhyper类似微内核，virtio-device实现内网通信。
 - [x] cpu阻塞，如何阻塞？还得判断是哪个位置的
 
 suspend一下就行
+
+- [x] 驱动程序如何判断环形队列已满?
+
+驱动程序会维护当前使用的队列元素个数, 并在向可用环增加请求时进行判断. 

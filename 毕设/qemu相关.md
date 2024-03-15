@@ -141,12 +141,173 @@ virtio_blk_handle_vq
 
 * kvm是什么？具体能起什么样的作用？
 
-Kernel-based Virtual Machine，是Linux内核的一部分，用于实现硬件虚拟化，可以提高qemu的性能
+Kernel-based Virtual Machine，是一个内核模块, 导出了一系列接口到用户空间, 这些接口可以创建, 配置, 启动虚拟机. KVM主要负责的是CPU虚拟化以及内存虚拟化. 
 
 * qemu呢？
 
 一种hypervisor，可以模拟真实的硬件。
 
+* qemu和kvm如何配合?
+
+qemu作为一个用户态程序, 对`/dev/kvm`进行ioctl, 即可调用kvm提供的各个控制接口. 当qemu调用执行vcpu相关的ioctl时, kvm会将执行流转换到vm的vcpu的执行流, 当vm执行一些特殊指令发生vm exit时, 执行流会陷入到kvm中, 大多数情况下kvm会转到qemu执行流, 此时ioctl返回, qemu进行判断即可. 
+
 ## linux内核源码
 
 virtio-driver发生中断时, 会进入vm_interrupt函数
+
+## blk设备的IO数据路程
+
+virtio_queue_notify->
+
+virtio_blk_handle_output->
+
+virtio_blk_handle_vq->
+
+virtio_blk_submit_multireq->
+
+submit_requests->
+
+blk_aio_pwritev->
+
+blk_aio_prwv->
+
+执行协程->blk_aio_read_entry
+
+blk_co_do_preadv_part->(qemu 7.2.1)
+
+bdrv_co_preadv_part->
+
+bdrv_co_preadv->(drv->bdrv_co_preadv)
+
+raw_co_preadv->(raw-format.c)
+
+bdrv_co_preadv->
+
+bdrv_co_preadv_part->
+
+bdrv_aligned_preadv
+
+bdrv_driver_preadv->
+
+raw_co_preadv(file-posix.c)->
+
+raw_co_prw->
+
+raw_thread_pool_submit放入线程池
+
+执行线程
+
+qemu_thread_start->
+
+worker_thread->
+
+handle_aiocb_rw->
+
+handle_aiocb_rw_linear(iov为单个请求)->
+
+pread......(/preadv)
+
+<img src="https://mdpics4lgw.oss-cn-beijing.aliyuncs.com/aliyun/image-20240124102400963.png" alt="image-20240124102400963" style="zoom:50%;" />
+
+<img src="https://mdpics4lgw.oss-cn-beijing.aliyuncs.com/aliyun/image-20240124102424720.png" alt="image-20240124102424720" style="zoom:50%;" />
+
+调试qemu的命令:
+
+```bash
+sudo gdb-multiarch --args qemu-system-aarch64 \
+    -machine virt,gic_version=3 \
+    -machine virtualization=true \
+    -dtb hvisor.dtb \
+    -cpu cortex-a57 \
+    -machine type=virt \
+    -nographic \
+    -smp 4  \
+    -m 2G \
+    -kernel linux-Image \
+    -append "console=ttyAMA0 root=/dev/vda rw mem=768m" \
+    -drive if=none,file=/home/lgw/study/hypervisor/new_readme/ubuntu-20.04-rootfs_ext4.img,id=hd0,format=raw \
+    -device virtio-blk-device,drive=hd0 \
+    -net nic \
+    -net user,hostfwd=tcp::2333-:22 \
+    -device virtio-serial-device -chardev pty,id=serial3 -device virtconsole,chardev=serial3
+```
+
+address_space_map函数中, flatview_translate没有进行有关IOMMU的操作, fuzz_dma_read_cb则是个空函数, 用于: 这个函数的主要目的是在进行虚拟机模糊测试时，模拟 DMA 读取操作，生成模糊测试所需的数据，并记录 DMA 区域以避免重复获取。这样可以模拟 DMA 操作对虚拟机内存的影响，用于测试虚拟机的正确性和稳定性。
+
+***
+
+如果增加了AIO优化编译选项的话, 可能会通过异步IO
+
+所以可以看到, 最后是通过异步IO的方式读写文件, 其实本质还是pread和pwrite, 只不过是利用qemu中的协程和事件循环的机制实现的. 不知道DMA是什么意思???
+
+## 内存管理
+
+## 协程
+
+相关资料: [qemu协程](https://blog.csdn.net/huang987246510/article/details/93139257?utm_medium=distribute.pc_relevant.none-task-blog-2~default~baidujs_baidulandingword~default-1-93139257-blog-8824735.235^v40^pc_relevant_3m_sort_dl_base3&spm=1001.2101.3001.4242.2&utm_relevant_index=4#t12)
+
+## qemu通外网
+
+qemu的网络分为两部分:
+
+1. 虚拟网络设备, 提供给guest
+2. 网络后端, 用于和虚拟网络设备, 宿主机相连
+
+**虚拟网络设备的创建命令:**
+
+* `- device`
+
+```
+-device TYPE,netdev=NAME
+```
+
+其中netdev为网络后端的id
+
+* `-nic`
+
+如果不想关注nic的太多细节, 可以采用-nic来代替-device. 比如
+
+```
+-netdev user,id=n1 -device virtio-net-pci,netdev=n1
+```
+
+```
+-nic user,model=virtio-net-pci
+```
+
+* `-net`
+
+这是传统可用但过时的用法, 比如:
+
+```
+-net nic,model=MODEL
+```
+
+命令可以查看支持的model类型
+
+```
+qemu-system-aarch64 -machine virt,gic_version=3 -net nic,model=?
+```
+
+**网络后端的创建命令:**
+
+```
+-netdev TYPE,id=NAME,...
+```
+
+ 其中id是虚拟网络设备的id, 这两个对应起来会连到一块
+
+如果TYPE为user, 即-netdev user, 那么会创建SLIRP的网络后端, 这性能很差且有限, 不建议,
+
+TYPE为tap的是推荐使用的, 它将使用host上的tap设备.
+
+```
+-netdev tap,id=mynet0
+```
+
+
+
+## 问题
+
+- [ ] BlockBackend对于virtio-blk是什么
+

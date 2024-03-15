@@ -227,13 +227,13 @@ struct virtio_blk_config {
 
 #### 协商features
 
-VIRTIO_NET_F_CSUM (0): Device处理报文时不管校验和
+VIRTIO_NET_F_CSUM (0): Device可以处理带有部分校验和的报文. 这样驱动就可以将一部分工作量卸载到设备, 减轻了主机处理这些数据包时的负担
 
-VIRTIO_NET_F_GUEST_CSUM (1): Driver处理报文时不管校验和
+VIRTIO_NET_F_GUEST_CSUM (1): 驱动进行部分校验数据包
 
 VIRTIO_NET_F_GUEST_UFO (10)
 
-VIRTIO_NET_F_HOST_TSO4 (11): device可以处理IPv4 TCP报文
+VIRTIO_NET_F_HOST_TSO4 (11): device可以处理IPv4 TCP报文, 意思就是驱动可以使用卸载到设备的TCP
 
 VIRTIO_NET_F_HOST_TSO6 (12) : device可以处理IPv6 TCP报文
 
@@ -297,7 +297,54 @@ gso_type表明该报文是以哪种协议传送.
 
 device设置报文头num_buffers为接收这个报文用到的描述符数量, 不过由于feature的设置, num_buffers恒为1 
 
-## 
+#### control queue的使用
+
+driver通过control queue可以发送命令给device, 来控制一些复杂feature的使用. 命令的数据格式为:
+
+```c
+struct virtio_net_ctrl {
+    u8 class;
+    u8 command;
+    u8 command-specific-data[];
+    u8 ack;
+};
+/* ack values */
+#define VIRTIO_NET_OK 0
+#define VIRTIO_NET_ERR 1
+```
+
+其中前3个字段是driver发出, ack是device响应的
+
+## virtio-console
+
+linux的命令行参数中, 会指定其启动后终端对应的串口, 例如`console=ttyAMA0`则表示设备树里的第一个串口. 之后计算机会监视该串口, 如果有字符读入, 则交给shell处理解析, 比如执行一个程序. 如果有字符要向串口写, 即transmit, 则写入该串口.
+
+因此如果想让一个虚拟机的串口操控另一个虚拟机, 那么需要每个虚拟机都有一个
+
+* Features:
+
+VIRTIO_CONSOLE_F_SIZE (0):Configuration cols and rows are valid.
+
+* 设备配置空间
+
+```c
+struct virtio_console_config {
+    le16 cols;
+    le16 rows;
+    le32 max_nr_ports;
+    le32 emerg_wr;
+};
+```
+
+包含4个队列:
+
+0 receiveq(port0) : device传给driver的
+
+1 transmitq(port0): driver发给device的. 
+
+2 control receiveq 
+
+3 control transmitq
 
 ## 参考资料
 
