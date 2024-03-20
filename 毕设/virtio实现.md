@@ -45,6 +45,12 @@
 
   IO结果队列,每个CPU都有一个位置和一个位置标记, 位置标记表示该位置是否可用. CPU等待时会轮询. 
 
+  只用一个IO结果队列, 要保存所有的irq的值, 以及特定位置的配置请求返回的值. 
+
+  **配置请求的结果区域要和Virtio进程共享. 最大的CPU设为16, 先简单一些.** 
+
+  **Map<cpu_id, List<>>弄成一个链表, 负责数据请求的中断注入**
+
 - [x] acrn发生配置请求时, CPU会阻塞吗. 
 
   它有vcpu, 应该是vcpu不会被调度了
@@ -59,9 +65,9 @@
 
   应该能, 这样就少了SGI. 关键问题是, 如果环形请求队列已满, 怎么办??? 原地等待啦. 记得加锁, 保证访问的互斥性. 
 
-- [ ] 记得增大MAX_REQ
+- [x] 记得增大MAX_REQ
 
-- [ ] 注意used ring flags和avail ring flags
+- [x] 注意used ring flags和avail ring flags
 
 - [x] CSUM怎么弄,看看
 
@@ -153,7 +159,7 @@
 因为目前实现的有问题
 
 - [x] 改linux, 把描述符分开
-- [ ] 确保各个环形队列在回环后正确工作, 包括virtio的
+- [x] 确保各个环形队列在回环后正确工作, 包括virtio的
 
 ```
 sudo ip link set dev eth0 promisc on
