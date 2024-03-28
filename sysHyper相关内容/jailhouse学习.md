@@ -1,6 +1,6 @@
 # jailhouse学习
 
-## 基本情况
+## 1.基本情况
 
 jailhouse又名监狱，cell又名监狱中一个个小的房间。
 
@@ -65,16 +65,18 @@ el2: hypervisor/jailhouse.bin
 Jailhouse的内存是一段物理上连续的区域，虚实地址转换只需要一个偏移量。总的物理内存布局图如下：
 
 ```c
-    +-----------+-------------------+-----------------+------------+--------------+------+
+    +----------------+----------------------------+------------------------+----------------+-------------------+--------+
     | Guest RAM | hypervisor_header | Hypervisor Code | cpu_data[] | system_confg | Heap |
-    +-----------+-------------------+-----------------+------------+--------------+------+
-                |__start                              |__page_pool                	     |hypervisor
+    +----------------+----------------------------+------------------------+----------------+-------------------+--------+
+                            |__start                                                            |__page_pool                	                 |hypervisor
 _header.size
 ```
 
 jailhouse管理内存通过一个基于bitmap的页式分配器，page_init函数初始化内存管理。
 
-system_config就是cell文件中的jailhouse_system，启动时会将其拷贝过去
+hypervisor_header是编译的时候生成的
+
+**system_config就是cell文件中的jailhouse_system，启动时会将其拷贝过去**
 
 system_config后面实际上是mem_pool的bitmap。guest ram就是guest代码段等所在的位置。
 
@@ -86,7 +88,7 @@ system_config后面实际上是mem_pool的bitmap。guest ram就是guest代码段
 
 <img src="https://mdpics4lgw.oss-cn-beijing.aliyuncs.com/aliyun/image-20231227164711886.png" alt="image-20231227164711886" style="zoom:50%;" />
 
-## 启动jailhouse
+### 启动jailhouse
 
 * 编译Jailhouse：
 
@@ -144,7 +146,7 @@ sudo ./tools/jailhouse cell destroy gic-demo
 
 .cell 文件见对应的C文件
 
-### 启动一个non root linux
+#### 启动一个non root linux
 
 命令：
 
@@ -168,7 +170,7 @@ sudo ./tools/jailhouse cell destroy qemu-arm64-linux-demo
 
 [Arm64下Linux内核Image头的格式_arm64 kernel image header-CSDN博客](https://blog.csdn.net/Roland_Sun/article/details/105144372)
 
-### 双串口启动
+#### 双串口启动
 
 ```
 sudo qemu-system-aarch64 \
@@ -190,7 +192,7 @@ sudo qemu-system-aarch64 \
 
 make run后，在新终端执行sudo screen /dev/pts/5，然后回车。这样root linux用的就是virtio-serial，non root用的物理串口。
 
-## debug jailhouse
+### debug jailhouse
 
 host文件夹下执行脚本debug_jail.sh启动qemu。
 
@@ -236,13 +238,36 @@ bootstrap_vectors:
 
 差值：0xffff0000bfa00000
 
-## 2种文件
+### 2种文件
 
 .cell：cell的配置文件
 
 .bin：有一定内存布局的可执行文件，包含代码段等等，对于jailhouse.bin则是以header开头
 
-## enable jailhouse
+## 2.enable jailhouse
+
+### jailhouse.bin的结构
+
+其布局由文件hypervisor/hypervisor.lds.S 指定, 开头为:
+
+```
+/** Hypervisor description header. */
+struct jailhouse_header __attribute__((section(".header")))
+hypervisor_header = {
+	.signature = JAILHOUSE_SIGNATURE,
+	.core_size = (unsigned long)__page_pool - JAILHOUSE_BASE,
+	.percpu_size = sizeof(struct per_cpu),
+	.entry = arch_entry - JAILHOUSE_BASE,
+	.console_page = (unsigned long)&console - JAILHOUSE_BASE,
+};
+```
+
+.console段为:
+
+```
+volatile struct jailhouse_virt_console console
+	__attribute__((section(".console")));
+```
 
 在root Linux下执行`./jailhouse enable configs/qemu-arm64.cell`命令时，用户态程序tools/jailhouse.c根据enable参数，会执行enable函数
 
@@ -250,9 +275,7 @@ bootstrap_vectors:
 
 jailhouse.c
 
-1. enable：通过ioctl发送JAILHOUSE_ENABLE，jailhouse.ko会捕捉到该系统调用，跳转到jailhouse_cmd_enable
-
-> ioctl 是设备驱动程序中设备控制函数（一种系统调用），用户态程序可通过ioctl向特定的设备发出命令和参数。这里将jailhouse.ko当成了一种设备驱动
+1. enable：通过ioctl发送JAILHOUSE_ENABLE，jailhouse.ko会捕捉到该系统调用，跳转到jailhouse_cmd_enable. 跳转时会将cell文件内容一并传递过去
 
 ### driver-el1
 
@@ -262,11 +285,13 @@ main.c：jailhouse_ioctl->
 
 1. jailhouse_cmd_enable
 
-   该函数通过调用request_firmware函数，将jailhouse.bin载入内存，并进行了物理地址和虚拟地址的映射，形成了指定布局的Hypervisor(commonly visible hypervisor memory)
+   * request_firmware: 从/lib/firmware中寻找文件名为fw_name的bin文件, 其实就是**jailhouse.bin, 并将其载入内存**，并以&hypervisor参数返回. 
+
+   之后将JAILHOUSE_BASE表示的内核虚拟地址与cell文件中指定的jailhouse.bin在的物理地址区域进行了映射，并将jailhouse.bin的内容填入到了这片地址区域中. 
 
    通过jailhouse_cell_prepare_root(&config->root_cell)，为该cell注册了sysfs上的一个kobject。
 
-   每个CPU调用enter_hypervisor。
+   **每个CPU调用enter_hypervisor**。
 
 2. enter_hypervisor：该函数内调用header中的arch_entry，并将CPU id作为参数传入
 
@@ -345,6 +370,58 @@ hv_paging_structs.root_table = (page_table_t)public_per_cpu(0)->root_table_page;
 > 话说在取消这个页表对所有CPU private域的映射时，不应该取消0号CPU呀，因为这就是
 
 per_cpu中的pg_structs：每个per_cpu都在public域中保存着一张根页表，根页表指向的下一级页表其实和hv_paging_structs中的root_table一样了。对于JAILHOUSE_BASE这个有自己per_cpu中的private域映射。**该页表会作为本CPU在el2时的页表基地址**（设置到MMU里了）
+
+paging为：arm_paging
+
+```c
+const static struct paging arm_paging[] = {
+#if MAX_PAGE_TABLE_LEVELS > 3
+	{
+		ARM_PAGING_COMMON
+		/* No block entries for level 0, so no need to set page_size */
+		.get_entry = arm_get_l0_entry,
+		.get_phys = arm_get_l0_phys,
+
+		.set_next_pt = arm_set_l12_table,
+		.get_next_pt = arm_get_l12_table,
+	},
+#endif
+#if MAX_PAGE_TABLE_LEVELS > 2
+	{
+		ARM_PAGING_COMMON
+		/* Block entry: 1GB */
+		.page_size = 1024 * 1024 * 1024,
+		.get_entry = arm_get_l1_entry,
+		.set_terminal = arm_set_l1_block,
+		.get_phys = arm_get_l1_phys,
+
+		.set_next_pt = arm_set_l12_table,
+		.get_next_pt = arm_get_l12_table,
+	},
+#endif
+	{
+		ARM_PAGING_COMMON
+		/* Block entry: 2MB */
+		.page_size = 2 * 1024 * 1024,
+		.get_entry = arm_get_l2_entry,
+		.set_terminal = arm_set_l2_block,
+		.get_phys = arm_get_l2_phys,
+
+		.set_next_pt = arm_set_l12_table,
+		.get_next_pt = arm_get_l12_table,
+	},
+	{
+		ARM_PAGING_COMMON
+		/* Page entry: 4kB */
+		.page_size = 4 * 1024,
+		.get_entry = arm_get_l3_entry,
+		.set_terminal = arm_set_l3_page,
+		.get_phys = arm_get_l3_phys,
+	}
+};
+```
+
+
 
 * el2地址空间包含的内容：
 
