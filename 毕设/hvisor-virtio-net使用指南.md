@@ -7,14 +7,16 @@
 启动qemu参数增加:
 
 ```
--netdev user,id=n0,hostfwd=tcp::5555-:22 -device virtio-net-device,bus=virtio-mmio-bus.24,netdev=n0
+-netdev user,id=n0,hostfwd=tcp::5555-:22 -device virtio-net-device,bus=virtio-mmio-bus.30,netdev=n0
 ```
+
+注意，`bus=virtio-mmio-bus.30`是指，虚拟网卡会成为virtio-mmio区域中的第30个设备（从1开始计数）。因此，30这个数字并不是固定的，需要根据实际情况来确定。
 
 在虚拟机中, ping百度即可. 如果ping不通, 可以重启电脑再试. 
 
 ## root linux的配置
 
-在编译root linux的镜像前, 在.config文件中把IPv6和BRIDGE的config都改成y, 以支持在root linux中创建网桥和tap设备. 
+在编译root linux的镜像前, 在.config文件中把CONFIG_IPV6和CONFIG_BRIDGE的config都改成y, 以支持在root linux中创建网桥和tap设备. 
 
 启动root linux后, 通过systemd-networkd来自动根据配置文件来创建网络拓扑. 在/etc/systemd/network/目录下, 新建4个文件:
 
@@ -73,6 +75,10 @@ sudo systemctl enable --now systemd-networkd
 non root linux需要手动激活虚拟网卡. 方法是:
 
 ```c
+
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+
 // 查看可用的网络设备
 ip link
 // 激活eth0网卡

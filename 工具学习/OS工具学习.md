@@ -350,3 +350,15 @@ select vdisk file="C:\Users\15035\AppData\Local\Packages\CanonicalGroupLimited.U
 compact vdisk
 ```
 
+## 脚本学习
+
+### 脚本参数
+
+$#：真实参数的数量（不包括进程名）
+
+`$1, $2, ....`：脚本的参数，以空格分隔
+
+`$0`：当前执行的进程名
+
+`$?`：上一个命令执行后的返回状态。如果是0表示正确执行
+

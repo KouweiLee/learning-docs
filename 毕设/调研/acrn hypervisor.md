@@ -70,7 +70,7 @@ virtio_blk_init
 
 * 处理virtio请求
 
-virtio_blk_proc则是virtio blk处理virtio请求的主体函数. 
+virtio_blk_proc则是virtio blk处理virtio请求的主体函数. virtio_blk_done
 
 ### virtio net的实现
 

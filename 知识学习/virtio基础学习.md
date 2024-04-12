@@ -233,7 +233,7 @@ VIRTIO_NET_F_GUEST_CSUM (1): 驱动进行部分校验数据包
 
 VIRTIO_NET_F_GUEST_UFO (10)
 
-VIRTIO_NET_F_HOST_TSO4 (11): device可以处理IPv4 TCP报文, 意思就是驱动可以使用卸载到设备的TCP
+VIRTIO_NET_F_HOST_TSO4 (11): device可以处理IPv4 TCP报文, 意思就是驱动可以使用下放到设备的TCP
 
 VIRTIO_NET_F_HOST_TSO6 (12) : device可以处理IPv6 TCP报文
 
@@ -318,8 +318,6 @@ struct virtio_net_ctrl {
 ## virtio-console
 
 linux的命令行参数中, 会指定其启动后终端对应的串口, 例如`console=ttyAMA0`则表示设备树里的第一个串口. 之后计算机会监视该串口, 如果有字符读入, 则交给shell处理解析, 比如执行一个程序. 如果有字符要向串口写, 即transmit, 则写入该串口.
-
-因此如果想让一个虚拟机的串口操控另一个虚拟机, 那么需要每个虚拟机都有一个
 
 * Features:
 

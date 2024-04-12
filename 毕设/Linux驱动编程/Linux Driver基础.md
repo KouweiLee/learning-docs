@@ -47,8 +47,6 @@ MAJOR(dev_t dev);
 MINOR(dev_t dev);
 ```
 
-
-
 ## 如何编写ko模块
 
 ### Module信息

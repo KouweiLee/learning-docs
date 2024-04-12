@@ -2,8 +2,45 @@
 
 ## 改进优化
 
-- [ ] 虚拟设备里放一个锁, 其实是为了多线程
-- [ ] 利用多线程优化网络设备和磁盘设备, 提升性能. 
+### 多线程的实现
+
+- [x] 确保每个被多个线程共享的资源都加锁
+
+- [x] 建立多个线程之间通信的队列，用TAILQ
+
+- [ ] 目前搞不懂这行代码为什么要等于1：
+
+  ```
+              vrxh->vrh_bufs = 1;
+  ```
+
+  另外，看一下virtio net设备和驱动协商features的过程，这里说driver可能会因为不支持feature导致不会写入？？？看明白VIRTIO_NET_F_MRG_RXBUF，目前可能缺少一个apply_features用于net和驱动协商的过程
+
+  ![image-20240405165651982](https://mdpics4lgw.oss-cn-beijing.aliyuncs.com/aliyun/202404051656304.png)
+
+  如果linux协商了，那么会设置mergeable_rx_bufs为true
+
+  num_buffers不用于发送报文，在收到报文时，num_buffers表示这个报文占据的描述符个数。如果VIRTIO_NET_F_MRG_RXBUF没有协商，那么buf数必须为1
+
+- [x] 先实现Blk的，测试通了，再实现net的。
+
+  - [ ] 遇到了奇怪的问题，start zone之后，res_front还是0，但是别的cpu启动后，看到的res_front就是-1。不是里面的内容被改了，而是el2看到的改变了。。。。
+
+    new_with_offset_mapper这个函数里的Bug是什么意思
+    
+  - [x] 先看代码，走通一遍
+
+- [ ] 注意几个TODO要修改。
+
+- [ ] 每个malloc，都记得要有一个free
+
+- [x] 记得修改有参考acrn的代码
+- [ ] 考虑看看是否直接通过mmap将镜像加载进去
+
+### 休眠：降低功耗
+
+- [ ] pause函数可以休眠直到信号出现：[c语言pause()函数（让进程暂停直到信号出现）-CSDN博客](https://blog.csdn.net/Dontla/article/details/122640811)；让进程暂停，会不会影响子线程？？？？我只想让主线程暂停。
+- [ ] **参考这里，让主线程来处理信号，从线程不动**：https://chat.openai.com/share/19f29791-d919-492e-9d80-dca6c51ca0c5
 
 ## net实现
 
