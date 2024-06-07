@@ -39,6 +39,21 @@ struct head {
 
 可通过man tailq来获取更多内容。
 
+* 入队
+
+```
+void TAILQ_INSERT_TAIL(TAILQ_HEAD *head, struct TYPE *elm,
+                       TAILQ_ENTRY NAME);
+```
+
+* 出队
+
+```
+void TAILQ_REMOVE(TAILQ_HEAD *head, struct TYPE *elm, TAILQ_ENTRY NAME);
+```
+
+
+
 * 反向遍历队列的实现原理
 
 TAILQ_ENTRY的定义为：

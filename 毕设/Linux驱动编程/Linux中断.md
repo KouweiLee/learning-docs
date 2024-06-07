@@ -1,4 +1,4 @@
-# Interrupts in Linux Kernel
+# Iterrupts in Linux Kernel
 
 ## Linux中断需要注意的地方
 

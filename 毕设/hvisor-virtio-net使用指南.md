@@ -18,6 +18,8 @@
 
 在编译root linux的镜像前, 在.config文件中把CONFIG_IPV6和CONFIG_BRIDGE的config都改成y, 以支持在root linux中创建网桥和tap设备. 
 
+### 通过systemd自动创建网络拓扑
+
 启动root linux后, 通过systemd-networkd来自动根据配置文件来创建网络拓扑. 在/etc/systemd/network/目录下, 新建4个文件:
 
 50-hvisor.netdev
@@ -70,12 +72,30 @@ sudo systemctl enable --now systemd-networkd
 
 这会自动在开机时就根据这配置文件来创建网络拓扑.
 
+### 命令行创建
+
+如果没有systemd的工具，那么可以根据以下命令自动创建：
+
+```
+#!/bin/bash
+set -e
+
+brctl addbr br0
+brctl addif br0 eth0
+ifconfig eth0 0
+dhclient br0
+ip tuntap add dev tap0 mode tap
+brctl addif br0 tap0
+ip link set dev tap0 up
+```
+
+
+
 ## non root linux的配置
 
 non root linux需要手动激活虚拟网卡. 方法是:
 
 ```c
-
 mount -t proc proc /proc
 mount -t sysfs sysfs /sys
 

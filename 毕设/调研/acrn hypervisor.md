@@ -68,6 +68,10 @@ virtio_blk_init
 
 每个virtio blk device都会创建8个work线程, 用来处理读写请求. 线程执行的函数为blockif_thr. 具体进行文件读写的函数位于blockif_proc. 使用了preadv, pwritev和psync. 
 
+blockif_request
+
+多线程环境下不能瞎执行，需要3个队列，用来保证执行顺序
+
 * 处理virtio请求
 
 virtio_blk_proc则是virtio blk处理virtio请求的主体函数. virtio_blk_done
@@ -119,7 +123,9 @@ virtio_net_tap_rx--> 调用readv, 从tapfd中读取数据
 
 ![image-20240207105033877](https://mdpics4lgw.oss-cn-beijing.aliyuncs.com/aliyun/image-20240207105033877.png)
 
+## acrn virtio的通信路径
 
+virtio 驱动陷入hypervisor，
 
 ## 问题
 
