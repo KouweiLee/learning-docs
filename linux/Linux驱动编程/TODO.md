@@ -1,0 +1,1 @@
+- [ ] insmod时传入命令行参数：https://embetronicx.com/tutorials/linux/device-drivers/linux-device-driver-tutorial-part-3-passing-arguments-to-device-driver/
