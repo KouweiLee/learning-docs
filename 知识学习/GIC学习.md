@@ -42,7 +42,7 @@ PPI是每个处理器的私有中断, 例如CPU本地定时器, 定时器直接�
 
 ### SPI
 
-对于INTID为`n`的SPI，`GICD_IROUTER<n>`通过affinity值和IRM指定了目标CPU是哪个或哪些。
+**对于INTID为`n`的SPI，`GICD_IROUTER<n>`通过affinity值和IRM指定了目标CPU是哪个或哪些。**
 
 ## 重要的寄存器
 
@@ -114,6 +114,9 @@ CPU interfaces虚拟化后，寄存器可分为3组：
 
 * State：该虚拟中断当前的状态
 * HW：该虚拟中断是否对应一个真实的物理中断。如果是，当deactivate该虚拟中断时，也会deactivate pINTID对应的物理中断
+* pINTID：
+
+![image-20240823074800990](https://mdpics4lgw.oss-cn-beijing.aliyuncs.com/aliyun/image-20240823074800990.png)
 
 `ich_elrsr_el2`：其低16位中，第n位表示List寄存器`ICH_LR<n>_EL2`的状态。若为1，表示该寄存器空闲，可以用来发出虚拟中断；若为0, 表示该寄存器正代表一个虚拟中断，不可用。
 
@@ -130,6 +133,24 @@ CPU interfaces虚拟化后，寄存器可分为3组：
 edge-triggered：只要外设发出中断信号，那么只有当软件承认了该中断，中断才会消失
 
 levle-sensitive：外设发来的中断信号存在时，该中断保持；中断信号消失，该中断也会消失。
+
+## maintenace interrupt
+
+该中断用于通知hypervisor，处理有关GIC的特殊事件。可用于当list registers满的处理，arm强烈推荐该中断号设置为25,因此25号中断是硬件设置的，并且是Non secure group 1中断，且为level sensitive。
+
+与该中断相关的寄存器为：`ICH_HCR_EL2`：
+
+ICH_HCR_EN（bit 0）：只有设置为1, 才能enable 
+
+ICH_HCR_UIE（bit 1）：设置为1时，当list寄存器全部可用或只有一个不可用时（不可用是指有虚拟中断需要注入），则触发maintenace interrupt；设置为0, 取消触发。因此，如果设置该位为1，等到list寄存器基本全部可用时，就会发生maintenace interrupt，陷入el2处理。我们可以利用这个特性，解决list寄存器为满的情况。
+
+![image-20240817090229306](https://mdpics4lgw.oss-cn-beijing.aliyuncs.com/aliyun/image-20240817090229306.png)
+
+## 相关寄存器
+
+List registers： ICH_LR_EL2
+
+ICH_ELRSR_EL2：指明List 寄存器是否包含一个中断。其低16位，每位对应一个list寄存器。如果位为1, 表示不包含，即list寄存器的state为0, 并且满足以下两个条件之一：1. HW为1；2. EOI为0
 
 ## 问题
 

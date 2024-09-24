@@ -605,6 +605,39 @@ bdf唯一标识pci设备的一个功能，即bus, device, function，分别占8,
 
 MSI，message signal interrupt, 是PCI设备通过写一个特定消息到特定地址，从而触发一个CPU中断。
 
+## jailhouse对list register满的处理
+
+```
+	handle_vmexit arch_handle_trap // 同步异常
+	handle_vmexit irqchip_handle_irq // 中断
+```
+
+arch_handle_trap-->：
+
+
+
+irqchip_set_pending
+
+
+
+irqchip_handle_irq--》
+
+arch_handle_sgi--》
+
+irqchip_inject_pending
+
+
+
+irqchip_handle_irq--》
+
+arch_handle_phys_irq--》
+
+irqchip_inject_pending
+
+
+
+如果慢了，就触发maintenace interrupt，：gicv3_enable_maint_irq
+
 ## 问题
 
 - [x] 什么是driver：el1下的jailhouse.ko

@@ -10,9 +10,31 @@ NXP包含2个GPU，一个3D GPU：GC7000UL，一个2D GPU：GC520L。
 
 OKMX8MPQ-C 支持 MIPI DSI、HDMI、LVDS 屏幕接口。在uboot选择display select，按下相应的数字，开关屏幕接口，以显示Qt界面。
 
-* emmc启动时
+### 使用gpu
 
-![image-20240802182846426](https://mdpics4lgw.oss-cn-beijing.aliyuncs.com/aliyun/image-20240802182846426.png)
+* 查看是否有GPU
+
+```
+cat /sys/kernel/debug/gc/info
+```
+
+[gpu使用文档](file:///media/lgw/E/study/pku/nxp/resources/imx-yocto-L5.4.70_2.3.0/i.MX_Graphics_User's_Guide.pdf)中gpuinfo.sh位于emmc的rootfs/unit_tests/GPU中。
+
+要使用gpu.sh，则还需要一个显示屏。
+
+* 通过obs查看屏幕输出
+
+打开obs，来源添加视频采集设备即可。
+
+### gpu直通root linux
+
+1. 修改设备树
+
+2. smc调用如何解决？？？
+
+### linux gpu驱动
+
+probe函数：gpu_probe
 
 ## 物理GPU
 

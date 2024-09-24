@@ -717,6 +717,31 @@ match dice_roll {
 }
 ```
 
+* 匹配守卫
+
+**匹配守卫**（*match guard*）是一个位于 `match` 分支模式之后的额外 `if` 条件，它能为分支模式提供更进一步的匹配条件。例如：
+
+```rust
+let num = Some(4);
+
+match num {
+    Some(x) if x < 5 => println!("less than five: {}", x),
+    Some(x) => println!("{}", x),
+    None => (),
+}
+```
+
+第一个匹配条件增加了对`x<5`的判断。
+
+```rust
+match x {
+    4 | 5 | 6 if y => println!("yes"),
+    _ => println!("no"),
+}
+```
+
+第二个`if y`，会作用于之前的所有条件。
+
 ### if let简洁控制流
 
 如果match中的一些模式我们不需要去管，那么就可以用if let来简化match：
@@ -1272,6 +1297,20 @@ fn main() {
 `impl`后面的泛型`<X1, Y1>`是指impl后面结构体中是泛型而不是具体类型。方法中的泛型是指该方法的。
 
 泛型类型T有时候需要增加一个类型限制，来满足一些运算符，这个类型限制就是Trait。
+
+### 为所有满足泛型的结构体实现Trait
+
+```rust
+// 定义一个Trait Backend，该trait继承多个trait。因此实现Backend的类型都必须实现这些trait。
+pub trait Backend:
+    ReadVolatile + WriteVolatile + Seek + FileSync + PunchHole + WriteZeroesAt
+{
+}
+// 为所有满足B泛型的类型，实现Backend trait。B是一个泛型类型参数，表示所有实现了这些trait的类型。
+impl<B: ReadVolatile + WriteVolatile + Seek + FileSync + PunchHole + WriteZeroesAt> Backend for B {}
+```
+
+通过这种写法，所有满足实现这些trait的类型，都自动成为了Backend
 
 ## Trait
 
